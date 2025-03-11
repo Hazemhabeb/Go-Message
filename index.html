@@ -125,7 +125,11 @@
   <div id="feedback" class="message" style="display:none;"></div>
 </div>
 
-<script>
+<script type="module">
+  // Import Firebase modules properly
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+  import { getFirestore, collection, doc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
   // ✅ Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyD7_x1DNVwmz3bMa7xxxNjfddAKBCwspVk",
@@ -133,9 +137,9 @@
     projectId: "go-message-7c11b",
   };
 
-  // ✅ Initialize Firebase
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+  // ✅ Initialize Firebase & Firestore
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
   // ✅ Extract UID from URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -146,7 +150,7 @@
   }
 
   // ✅ Send message to Firestore
-  function sendMessage() {
+  window.sendMessage = async function () {
     const messageSelect = document.getElementById('messageSelect');
     const selectedMessage = messageSelect.value;
     const feedback = document.getElementById('feedback');
@@ -158,22 +162,23 @@
       return;
     }
 
-    db.collection("users").doc(userId).collection("messages").add({
-      message: selectedMessage,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    })
-    .then(() => {
+    try {
+      await addDoc(collection(doc(collection(db, "users"), userId), "messages"), {
+        message: selectedMessage,
+        timestamp: serverTimestamp()
+      });
+
       feedback.innerText = "✅ Message sent successfully!";
       feedback.className = "message success";
       feedback.style.display = "block";
       messageSelect.value = ""; // Reset selection
-    })
-    .catch((error) => {
+
+    } catch (error) {
       console.error("Error sending message: ", error);
       feedback.innerText = "❗ Failed to send message. Please try again.";
       feedback.className = "message error";
       feedback.style.display = "block";
-    });
+    }
   }
 </script>
 
