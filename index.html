@@ -1,61 +1,181 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Send Message</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Send a Message - BarcodeChat</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      font-size: 1.6em;
+      line-height: 1.3;
+    }
+
+    p {
+      font-size: 1em;
+      margin-bottom: 16px;
+    }
+
+    select, button {
+      width: 100%;
+      padding: 14px;
+      margin: 14px 0;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+      appearance: none;
+    }
+
+    select {
+      background: white;
+      color: black;
+    }
+
+    button {
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+      font-size: 1.1em;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.95em;
+    }
+
+    .success {
+      background-color: #2ecc71;
+    }
+
+    .error {
+      background-color: #e74c3c;
+    }
+
+    @media (max-width: 480px) {
+      h2 {
+        font-size: 1.4em;
+      }
+
+      p {
+        font-size: 0.95em;
+      }
+
+      select, button {
+        padding: 12px;
+        font-size: 1em;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h1>Send a Message</h1>
-  <form id="messageForm">
-    <input type="text" id="senderName" placeholder="Your Name" required><br><br>
-    <select id="message">
-      <option value="Please check your car">Please check your car</option>
-      <option value="You are parked in the wrong place">You are parked in the wrong place</option>
-      <option value="Urgent: Please move your vehicle">Urgent: Please move your vehicle</option>
-    </select><br><br>
-    <button type="submit">Send</button>
-  </form>
 
-  <p id="result"></p>
+<div class="container">
+  <h2>Send a Quick Message</h2>
+  <p>Select a message to notify the user.</p>
 
-  <script>
-    // Initialize Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyD7_x1DNVwmz3bMa7xxxNjfddAKBCwspVk",
-      authDomain: "go-message-7c11b.firebaseapp.com",
-      projectId: "go-message-7c11b",
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+  <select id="messageSelect">
+    <option value="">-- Select a message --</option>
+    <option value="Please move your car, it's blocking the way.">🚗 Please move your car, it's blocking the way.</option>
+    <option value="Your car alarm is on. Please check it.">🔔 Your car alarm is on. Please check it.</option>
+    <option value="Your car is in a restricted area. Please relocate.">🚫 Your car is in a restricted area. Please relocate.</option>
+    <option value="Urgent! Please return to your car.">⚠️ Urgent! Please return to your car.</option>
+  </select>
 
-    // Get UID from query params
-    const urlParams = new URLSearchParams(window.location.search);
-    const uid = urlParams.get('uid');
+  <button onclick="sendMessage()">🚀 Send Message</button>
 
-    document.getElementById('messageForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      const senderName = document.getElementById('senderName').value;
-      const message = document.getElementById('message').value;
+  <div id="feedback" class="message" style="display:none;"></div>
+</div>
 
-      if (!uid) {
-        document.getElementById('result').innerText = 'Invalid user ID.';
-        return;
-      }
+<script>
+  // ✅ Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyD7_x1DNVwmz3bMa7xxxNjfddAKBCwspVk",
+    authDomain: "go-message-7c11b.firebaseapp.com",
+    projectId: "go-message-7c11b",
+  };
 
-      try {
-        await db.collection('users').doc(uid).collection('messages').add({
-          senderName: senderName,
-          message: message,
-          timestamp: new Date()
-        });
-        document.getElementById('result').innerText = 'Message sent successfully!';
-      } catch (error) {
-        console.error(error);
-        document.getElementById('result').innerText = 'Failed to send message.';
-      }
+  // ✅ Initialize Firebase
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // ✅ Extract UID from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const userId = urlParams.get('uid');
+
+  if (!userId) {
+    alert("❗ Error: No user ID found. Please scan a valid barcode.");
+  }
+
+  // ✅ Send message to Firestore
+  function sendMessage() {
+    const messageSelect = document.getElementById('messageSelect');
+    const selectedMessage = messageSelect.value;
+    const feedback = document.getElementById('feedback');
+
+    if (!selectedMessage) {
+      feedback.innerText = "⚠️ Please select a message to send.";
+      feedback.className = "message error";
+      feedback.style.display = "block";
+      return;
+    }
+
+    db.collection("users").doc(userId).collection("messages").add({
+      message: selectedMessage,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+      feedback.innerText = "✅ Message sent successfully!";
+      feedback.className = "message success";
+      feedback.style.display = "block";
+      messageSelect.value = ""; // Reset selection
+    })
+    .catch((error) => {
+      console.error("Error sending message: ", error);
+      feedback.innerText = "❗ Failed to send message. Please try again.";
+      feedback.className = "message error";
+      feedback.style.display = "block";
     });
-  </script>
+  }
+</script>
+
 </body>
 </html>
